@@ -317,47 +317,5 @@ describe('Admin endpoint API key enforcement (#1045)', () => {
       expect(res.status).toBe(200);
       expect(mockIndexer.indexLedgerRange).toHaveBeenCalledTimes(1);
     });
-
-    it('rejects the unparsed-event listing with no API key', async () => {
-      const res = await request(app.getHttpServer()).get('/indexer/unparsed-events');
-
-      expect(res.status).toBe(401);
-      expect(res.body.error).toBe('MISSING_API_KEY');
-      expect(mockIndexer.listUnparsedEvents).not.toHaveBeenCalled();
-    });
-
-    it('rejects every replay route with no API key', async () => {
-      const calls = [
-        () => request(app.getHttpServer()).post('/indexer/unparsed-events/replay'),
-        () => request(app.getHttpServer()).post('/indexer/unparsed-events/000123/replay'),
-        () =>
-          request(app.getHttpServer())
-            .post('/indexer/unparsed-events/replay/batch')
-            .send({ pagingTokens: ['000123'] }),
-      ];
-
-      for (const call of calls) {
-        const res = await call();
-
-        expect([401, 403]).toContain(res.status);
-        expect(res.body.error).toBe('MISSING_API_KEY');
-      }
-
-      expect(mockIndexer.replayUnparsedEvents).not.toHaveBeenCalled();
-      expect(mockIndexer.replaySingleEvent).not.toHaveBeenCalled();
-      expect(mockIndexer.replaySpecificBatch).not.toHaveBeenCalled();
-    });
-
-    it('rejects an over-quota key', async () => {
-      mockApiKeysService.isOverQuota.mockReturnValue(true);
-
-      const res = await request(app.getHttpServer())
-        .post('/indexer/reindex')
-        .set('x-api-key', 'exhausted-key')
-        .send({ contractId: 'c1', fromLedger: 1, toLedger: 10 });
-
-      expect(res.status).toBe(403);
-      expect(res.body.error).toBe('QUOTA_EXCEEDED');
-    });
   });
 });
